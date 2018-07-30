@@ -114,14 +114,13 @@ func testEtcd(config *rest.Config) {
 	}
 
 	etcdEndpoints := strings.Split(endpoints, ",")
-	cli, err := clientv3.New(clientv3.Config{
-		Endpoints:   etcdEndpoints,
-		DialTimeout: 5 * time.Second,
-		TLS: tlsConfig,
-	})
 
-	defer cli.Close()
 	for i := 0; i < 1000; i++ {
+		cli, err := clientv3.New(clientv3.Config{
+			Endpoints:   etcdEndpoints,
+			DialTimeout: 5 * time.Second,
+			TLS: tlsConfig,
+		})
 		// create new key, value
 		txnResp, err := cli.KV.Txn(context.TODO()).If(
 			notFound("longhorn"),
@@ -133,8 +132,8 @@ func testEtcd(config *rest.Config) {
 		}
 		// get after create
 		ctx, cancel := context.WithTimeout(context.Background(), time.Second)
-		cancel()
 		resp, err := cli.KV.Get(ctx, "longhorn")
+		cancel()
 		if err != nil {
 			fmt.Printf("get after create through etcd error : %v \n", err)
 		}
@@ -164,11 +163,12 @@ func testEtcd(config *rest.Config) {
 		// list after delete
 		ctx, cancel = context.WithTimeout(context.Background(), time.Second)
 		gr, err := cli.KV.Get(ctx, "longhorn")
+		cancel()
 		if err != nil {
 			fmt.Printf("get after delete through etcd error : %v \n", err)
 		}
 		fmt.Printf("get after delete, result is :%+v \n", gr.Kvs)
-		cancel()
+		cli.Close()
 	}
 }
 
