@@ -1,11 +1,12 @@
 FROM golang:1.10.3
 
-RUN mkdir -p /go/src/github.com/rancher/longhorn-manager/
+RUN go get github.com/rancher/longhorn-manager && \
+    go get github.com/coreos/etcd
+
+COPY ./mytest.go /go/src/github.com/rancher/longhorn-manager/mytest.go
+
+COPY ./test /go/src/github.com/rancher/longhorn-manager/test
 
 WORKDIR /go/src/github.com/rancher/longhorn-manager
 
-RUN git clone https://github.com/rancher/longhorn-manager.git
-
-COPY . /go/src/github.com/rancher/longhorn-manager/
-
-CMD ["./test"]
+ENTRYPOINT ["./test"]
