@@ -120,53 +120,58 @@ func testEtcd(config *rest.Config) {
 		TLS: tlsConfig,
 	})
 
+	defer cli.Close()
 	for i := 0; i < 1000; i++ {
 		// create new key, value
-		ctx, cancel := context.WithTimeout(context.Background(), time.Second)
-		rs, err := cli.Put(ctx, "/longhorn/test/", "test_Save_value")
-		if err != nil {
-			fmt.Printf("create through etcd error : %v \n", err)
+		txnResp, err := cli.KV.Txn(context.TODO()).If(
+			notFound("longhorn"),
+		).Then(
+			clientv3.OpPut("longhorn", "test_save_value"),
+		).Commit()
+		if !txnResp.Succeeded {
+			fmt.Printf("create error :: %+v \n", txnResp.Responses)
 		}
-		fmt.Printf("create complete, result is: %+v \n", rs.PrevKv)
-		cancel()
 		// get after create
-		ctx, cancel = context.WithTimeout(context.Background(), time.Second)
-		resp, err := cli.Get(ctx, "/longhorn/test/")
+		ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+		cancel()
+		resp, err := cli.KV.Get(ctx, "longhorn")
 		if err != nil {
 			fmt.Printf("get after create through etcd error : %v \n", err)
 		}
 		fmt.Printf("get after create, result is :%+v \n", resp.Kvs)
-		cancel()
+
 		// update key, value
-		ctx, cancel = context.WithTimeout(context.Background(), time.Second)
-		us, err := cli.Put(ctx, "/longhorn/test/", "new_test_value")
+		_, err = cli.KV.Put(context.TODO(), "longhorn", "new_test_value")
 		if err != nil {
 			fmt.Printf("update through etcd error : %v \n", err)
 		}
-		fmt.Printf("update complete, result is: %+v \n", us.PrevKv)
-		cancel()
 		// get after update
 		ctx, cancel = context.WithTimeout(context.Background(), time.Second)
-		ngs, err := cli.Get(ctx, "/longhorn/test")
+		ngs, err := cli.KV.Get(ctx, "longhorn")
+		cancel()
 		if err != nil {
 			fmt.Printf("get after update through etcd error : %v \n", err)
 		}
-		fmt.Printf("get after create, result is :%+v \n", ngs.Kvs)
-		cancel()
+		fmt.Printf("get after update, result is :%+v \n", ngs.Kvs)
+
 		//delete key, value
 		ctx, cancel = context.WithTimeout(context.Background(), time.Second)
-		_, err = cli.Delete(ctx, "/longhorn/test/")
+		dresp, err := cli.Delete(ctx, "longhorn", clientv3.WithPrefix())
 		if err != nil {
-			fmt.Printf("delete through etcd error : %v \n", err)
+			fmt.Printf("delete throught etcd error : %v \n", err)
 		}
-		cancel()
+		fmt.Printf("Deleted all keys: %v \n", dresp.Deleted)
 		// list after delete
 		ctx, cancel = context.WithTimeout(context.Background(), time.Second)
-		gr, err := cli.Get(ctx, "/")
+		gr, err := cli.KV.Get(ctx, "longhorn")
 		if err != nil {
 			fmt.Printf("get after delete through etcd error : %v \n", err)
 		}
-		fmt.Printf("get after create, result is :%+v \n", gr.Kvs)
+		fmt.Printf("get after delete, result is :%+v \n", gr.Kvs)
 		cancel()
 	}
+}
+
+func notFound(key string) clientv3.Cmp {
+	return clientv3.Compare(clientv3.ModRevision(key), "=", 0)
 }
