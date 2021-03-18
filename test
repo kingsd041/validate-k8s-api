@@ -4,5 +4,7 @@ if [[ name == name ]];then
     echo "hailong"
 fi
 
+echo "hailong"
+
 # for test
 go run mytest.go
